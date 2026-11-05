@@ -169,12 +169,39 @@
       color: white;
     }
 
+    .search-field {
+      display: block;
+      width: min(100%, 440px);
+      min-height: 48px;
+      margin: 0 0 20px;
+      padding: 0 16px;
+      border: 1px solid #cfe2e8;
+      border-radius: 14px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      box-shadow: 0 4px 12px rgb(42 82 100 / 5%);
+    }
+    .search-field::placeholder { color: #748a94; }
+    .search-field:focus-visible { outline: 3px solid #26769b; outline-offset: 3px; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .pet-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 20px;
       padding-bottom: 48px;
     }
+    .empty-state { margin: 0 0 32px; color: var(--muted); text-align: center; }
 
     .pet-card {
       position: relative;
@@ -366,7 +393,10 @@
         <button class="filter-button" type="button" data-filter="cat" aria-pressed="false">🐱 Cats</button>
       </div>
 
+      <label class="sr-only" for="pet-search">Search pets by name</label>
+      <input class="search-field" id="pet-search" type="search" placeholder="Search pets by name…" autocomplete="off">
       <div class="pet-grid" id="pet-grid" aria-label="Pets"></div>
+      <p class="empty-state" id="empty-state" role="status" hidden>No pets found. Try another name or change the pet filter.</p>
       <p class="recommendation" id="recommendation" aria-live="polite"></p>
     </section>
   </main>
@@ -403,6 +433,8 @@
     ];
 
     const petGrid = document.querySelector("#pet-grid");
+    const petSearch = document.querySelector("#pet-search");
+    const emptyState = document.querySelector("#empty-state");
     const favoriteCount = document.querySelector("#favorite-count");
     const petDialog = document.querySelector("#pet-dialog");
     const recommendation = document.querySelector("#recommendation");
@@ -435,7 +467,12 @@
     }
 
     function renderPets() {
-      const visiblePets = pets.filter((pet) => activeFilter === "all" || pet.type === activeFilter);
+      const searchTerm = petSearch.value.trim().toLocaleLowerCase();
+      const visiblePets = pets.filter((pet) =>
+        (activeFilter === "all" || pet.type === activeFilter) &&
+        pet.name.toLocaleLowerCase().includes(searchTerm)
+      );
+      emptyState.hidden = visiblePets.length > 0;
       petGrid.innerHTML = visiblePets.map((pet) => `
         <article class="pet-card${recommendedPetId === pet.id ? " recommended" : ""}" data-pet-card="${pet.id}">
           <button class="pet-open" type="button" data-open-pet="${pet.id}" aria-label="View ${pet.name}'s details">
@@ -511,11 +548,14 @@
       });
     });
 
+    petSearch.addEventListener("input", renderPets);
+
     document.querySelector("#recommend-button").addEventListener("click", () => {
       const choices = pets.filter((pet) => pet.id !== recommendedPetId);
       const pet = choices[Math.floor(Math.random() * choices.length)];
       recommendedPetId = pet.id;
       activeFilter = "all";
+      petSearch.value = "";
       document.querySelectorAll(".filter-button").forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.filter === activeFilter));
       });
